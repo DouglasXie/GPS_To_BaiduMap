@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+    <style type="text/css">
+        body, html,#allmap {width: 100%;height: 100%;overflow: hidden;margin:0;}
+    </style>
+    <script type="text/javascript" src="//api.map.baidu.com/api?v=3.0&ak=59TD9Dndbc5od5GrE9GiewYVdCCndkqW"></script>
+    <title>GPS to BaiduMap Tools</title>
+</head>
+<body>
+	<h1 ><b>GPS to BaiduMap Tools</b></h1>
+	<div >
+		<b>GPS Points:</b>
+		<b id="point_count">0</b>
+	</div>
+	 <div>
+		<input type="file" id="files" style="display: compact" onchange="fileImport();">
+	</div>
+    <div id="allmap"></div>
+</body>
+</html>
+<script src="./js/jquery-3.5.0.min.js"></script>
+<script type="text/javascript">
+	var events = [];
+	var start = 0;
+	var step=5;
+	
+	// 百度地图API功能
+	var map = new BMap.Map("allmap");
+	var enter_point = new BMap.Point(113.9328197, 22.52138433);
+	map.centerAndZoom(enter_point, 15);
+	map.enableScrollWheelZoom();//滚轮放大缩
+	map.addControl(new BMap.NavigationControl());
+	
+    //坐标转换完之后的回调函数
+	translateCallback = function (data) {
+		console.log(data)
+		if (data.status === 0) {
+			for (var i = 0; i < data.points.length; i++) {
+				var marker = new BMap.Marker(data.points[i]);
+				map.addOverlay(marker);
+				map.setCenter(data.points[i]);
+				//给标注点添加点击事件。使用立即执行函数和闭包
+				(function () {
+					var details = events[start + i];
+					marker.addEventListener("click", function () {
+						showInfo(this, details);
+					});
+				})();
+			}
+		}
+		start += step;
+		if ((start + step) < events.length) {
+			gpsConvert(events, start, start + step);
+		}
+	}
+	
+	function gpsConvert(events, start, end){
+		var points = []
+		for (var i = start; i < end; i++) {
+			point = new BMap.Point(events[i]['LON'],events[i]['LAT']);
+			points.push(point)
+		}
+		
+		setTimeout(function(){
+			var convertor = new BMap.Convertor();
+			convertor.translate(points, 1, 5, translateCallback)
+		}, 100);
+	}
+
+	//显示信息窗口，显示标注点的信息。
+	function showInfo(thisMaker, point) {
+		var sContent ='<ul style="margin:0 0 5px 0;padding:0.2em 0">';
+		for(var field in point)
+		{
+			sContent += '<li style="line-height: 16px;font-size: 12px;"><span style="width: 120px;display: inline-block;">';
+			sContent += field + '</span>' + point[field] + '</li>';
+		}
+		sContent += '</ul>';
+		var infoWindow = new BMap.InfoWindow(sContent);  // 创建信息窗口对象
+		thisMaker.openInfoWindow(infoWindow);   //图片加载完毕重绘infowindow
+	}	
+
+	function fileImport() {
+		//获取读取我文件的File对象
+		var selectedFile = document.getElementById('files').files[0];
+		var name = selectedFile.name;//读取选中文件的文件名
+		var size = selectedFile.size;//读取选中文件的大小
+		console.log("file name:"+name+", file size:"+size);
+		
+		var ext = name.split('.').pop().toLowerCase();
+		if(ext != 'json')
+		{
+			alert("Please select JSON file");
+		}
+		else
+		{
+			var reader = new FileReader();//这是核心,读取操作就是由它完成.
+			reader.readAsText(selectedFile);//读取文件的内容,也可以读取文件的URL
+			reader.onload = function () {
+				//当读取完成后回调这个函数,然后此时文件的内容存储到了result中,直接操作即可
+				events = []
+				var points = this.result.split(',\n');
+				for(let i in points)
+				{
+					if(points[i].length > 0)
+					{
+						events.push(JSON.parse(points[i]))
+					}
+				}
+				var counts = document.getElementById('point_count')
+				counts.textContent = events.length;
+				map.clearOverlays();
+				gpsConvert(events, start, start+step);
+			}
+
+		}
+	}
+</script>
+</body>
+</html>
