@@ -102,7 +102,7 @@
 			reader.onload = function () {
 				//当读取完成后回调这个函数,然后此时文件的内容存储到了result中,直接操作即可
 				events = []
-				var points = this.result.split(',\n');
+				var points = this.result.split('\n');
 				for(let i in points)
 				{
 					if(points[i].length > 0)
